@@ -114,6 +114,7 @@ import org.apache.ignite.internal.sql.engine.tx.QueryTransactionWrapper;
 import org.apache.ignite.internal.sql.engine.util.Commons;
 import org.apache.ignite.internal.sql.engine.util.IteratorToDataCursorAdapter;
 import org.apache.ignite.internal.sql.engine.util.TypeUtils;
+import org.apache.ignite.internal.table.distributed.replicator.InternalSchemaVersionMismatchException;
 import org.apache.ignite.internal.tx.InternalTransaction;
 import org.apache.ignite.internal.util.AsyncCursor;
 import org.apache.ignite.internal.util.ExceptionUtils;
@@ -319,6 +320,14 @@ public class ExecutionServiceImpl<RowT> implements ExecutionService, TopologyEve
         assert txContext != null;
 
         QueryTransactionWrapper txWrapper = txContext.getOrStartImplicit(plan.type() != SqlQueryType.DML);
+
+        // Here we ensure that a vlid plan is used for TX and the plan refers to valid sources (no index was dropped for example).
+        // Otherwise, we may miss recent updates that are not indexed.
+        if (!sqlSchemaManager.isActualSchemaVersion(plan.catalogVersion(), txWrapper.unwrap().startTimestamp().longValue())) {
+            // TODO: maybe better introduce separate exception for this case?
+            //  Because the current one means that binary row format is unexpected.
+            throw new InternalSchemaVersionMismatchException();
+        }
 
         AsyncCursor<InternalSqlRow> dataCursor = queryManager.execute(txWrapper.unwrap(), plan);
 

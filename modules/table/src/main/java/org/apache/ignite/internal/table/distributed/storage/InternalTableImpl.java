@@ -63,6 +63,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -80,6 +81,7 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.ignite.internal.binarytuple.BinaryTupleReader;
+import org.apache.ignite.internal.catalog.CatalogService;
 import org.apache.ignite.internal.hlc.HybridClock;
 import org.apache.ignite.internal.hlc.HybridTimestamp;
 import org.apache.ignite.internal.lang.IgniteBiTuple;
@@ -152,6 +154,8 @@ public class InternalTableImpl implements InternalTable {
 
     private final Supplier<ScheduledExecutorService> streamerFlushExecutor;
 
+    private final CatalogService catalogService;
+
     /** Table name. */
     private volatile String tableName;
 
@@ -219,6 +223,7 @@ public class InternalTableImpl implements InternalTable {
      * @param transactionInflights Transaction inflights.
      * @param implicitTransactionTimeout Implicit transaction timeout.
      * @param attemptsObtainLock Attempts to take lock.
+     * @param catalogService Catalog service.
      */
     public InternalTableImpl(
             String tableName,
@@ -236,7 +241,8 @@ public class InternalTableImpl implements InternalTable {
             TransactionInflights transactionInflights,
             long implicitTransactionTimeout,
             int attemptsObtainLock,
-            Supplier<ScheduledExecutorService> streamerFlushExecutor
+            Supplier<ScheduledExecutorService> streamerFlushExecutor,
+            CatalogService catalogService
     ) {
         this.tableName = tableName;
         this.tableId = tableId;
@@ -254,6 +260,7 @@ public class InternalTableImpl implements InternalTable {
         this.implicitTransactionTimeout = implicitTransactionTimeout;
         this.attemptsObtainLock = attemptsObtainLock;
         this.streamerFlushExecutor = streamerFlushExecutor;
+        this.catalogService = catalogService;
     }
 
     /** {@inheritDoc} */
@@ -341,6 +348,15 @@ public class InternalTableImpl implements InternalTable {
 
         boolean implicit = tx == null;
         InternalTransaction actualTx = startImplicitRwTxIfNeeded(tx);
+
+        if (implicit) {
+            long txTimestamp = tx.startTimestamp().longValue();
+            int actualCatalogVersion = catalogService.activeCatalogVersion(txTimestamp);
+
+            if (catalogService.table(tableId, actualCatalogVersion).schemaVersions().latestVersion() < row.schemaVersion()) {
+                throw new ConcurrentModificationException();
+            }
+        }
 
         int partId = partitionId(row);
 

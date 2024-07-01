@@ -31,6 +31,7 @@ import org.apache.calcite.tools.Frameworks;
 import org.apache.ignite.internal.sql.engine.schema.IgniteSchema;
 import org.apache.ignite.internal.sql.engine.schema.IgniteTable;
 import org.apache.ignite.internal.sql.engine.schema.SqlSchemaManager;
+import org.apache.ignite.internal.table.distributed.replicator.InternalSchemaVersionMismatchException;
 
 /**
  * Dummy wrapper for predefined collection of schemas.
@@ -94,5 +95,10 @@ public class PredefinedSchemaManager implements SqlSchemaManager {
         }
 
         return table;
+    }
+
+    @Override
+    public boolean isActualSchemaVersion(int catalogVersion, long timestamp) {
+        return true;
     }
 }

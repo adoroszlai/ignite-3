@@ -206,7 +206,8 @@ public class DummyInternalTableImpl extends InternalTableImpl {
                 storageUpdateConfiguration,
                 txConfiguration,
                 new RemotelyTriggeredResourceRegistry(),
-                new TransactionInflights(new TestPlacementDriver(LOCAL_NODE), CLOCK_SERVICE)
+                new TransactionInflights(new TestPlacementDriver(LOCAL_NODE), CLOCK_SERVICE),
+                mock(CatalogService.class)
         );
     }
 
@@ -234,7 +235,8 @@ public class DummyInternalTableImpl extends InternalTableImpl {
             StorageUpdateConfiguration storageUpdateConfiguration,
             TransactionConfiguration txConfiguration,
             RemotelyTriggeredResourceRegistry resourcesRegistry,
-            TransactionInflights transactionInflights
+            TransactionInflights transactionInflights,
+            CatalogService catalogService
     ) {
         super(
                 "test",
@@ -257,7 +259,8 @@ public class DummyInternalTableImpl extends InternalTableImpl {
                 transactionInflights,
                 3_000,
                 0,
-                null
+                null,
+                catalogService
         );
 
         RaftGroupService svc = tableRaftService().partitionRaftGroupService(PART_ID);
@@ -372,7 +375,6 @@ public class DummyInternalTableImpl extends InternalTableImpl {
 
         DummySchemaManagerImpl schemaManager = new DummySchemaManagerImpl(schema);
 
-        CatalogService catalogService = mock(CatalogService.class);
         CatalogTableDescriptor tableDescriptor = mock(CatalogTableDescriptor.class);
 
         lenient().when(catalogService.table(anyInt(), anyLong())).thenReturn(tableDescriptor);

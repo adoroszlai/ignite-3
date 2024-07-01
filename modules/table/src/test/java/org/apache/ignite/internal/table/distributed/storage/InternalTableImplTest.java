@@ -36,6 +36,7 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMaps;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.ignite.internal.catalog.CatalogService;
 import org.apache.ignite.internal.hlc.HybridClock;
 import org.apache.ignite.internal.hlc.HybridTimestamp;
 import org.apache.ignite.internal.network.SingleClusterNodeResolver;
@@ -75,7 +76,8 @@ public class InternalTableImplTest extends BaseIgniteAbstractTest {
                 mock(TransactionInflights.class),
                 3_000,
                 0,
-                null
+                null,
+                mock(CatalogService.class)
         );
 
         // Let's check the empty table.
@@ -125,7 +127,8 @@ public class InternalTableImplTest extends BaseIgniteAbstractTest {
                 mock(TransactionInflights.class),
                 3_000,
                 0,
-                null
+                null,
+                mock(CatalogService.class)
         );
 
         List<BinaryRowEx> originalRows = List.of(

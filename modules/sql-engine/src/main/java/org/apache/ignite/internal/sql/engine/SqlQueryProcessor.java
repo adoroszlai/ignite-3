@@ -111,6 +111,7 @@ import org.apache.ignite.internal.sql.metrics.SqlClientMetricSource;
 import org.apache.ignite.internal.storage.DataStorageManager;
 import org.apache.ignite.internal.systemview.api.SystemViewManager;
 import org.apache.ignite.internal.table.distributed.TableManager;
+import org.apache.ignite.internal.table.distributed.replicator.InternalSchemaVersionMismatchException;
 import org.apache.ignite.internal.table.distributed.schema.SchemaSyncService;
 import org.apache.ignite.internal.tx.HybridTimestampTracker;
 import org.apache.ignite.internal.tx.InternalTransaction;
@@ -609,7 +610,30 @@ public class SqlQueryProcessor implements QueryProcessor {
                                 txContext.updateObservableTime(deriveMinimalRequiredTime(plan));
                             }
 
-                            return executePlan(operationContext, plan, nextStatement);
+                            try {
+                                return executePlan(operationContext, plan, nextStatement);
+                            } catch (InternalSchemaVersionMismatchException ex) {
+                                if (txContext.explicitTx() != null) {
+                                    throw ex;
+                                }
+
+                                // Retry implicit transaction on concurrent schema change.
+                                SqlOperationContext newOpCtx = SqlOperationContext.builder()
+                                        .cancel(operationContext.cancel())
+                                        .defaultSchemaName(operationContext.defaultSchemaName())
+                                        .operationTime(clockService.now())
+                                        .parameters(operationContext.parameters())
+                                        .prefetchCallback(operationContext.prefetchCallback())
+                                        .queryId(operationContext.queryId())
+                                        .timeZoneId(operationContext.timeZoneId())
+                                        .txContext(txContext)
+                                        .build();
+
+                                CompletableFuture<AsyncSqlCursor<InternalSqlRow>> start = new CompletableFuture<>()
+                                        .thenCompose(ignore -> executeParsedStatement(newOpCtx, parsedResult, nextStatement));
+
+                                return start.completeAsync(null, taskExecutor);
+                            }
                         }));
     }
 
@@ -688,8 +712,8 @@ public class SqlQueryProcessor implements QueryProcessor {
                             txContext.updateObservableTime(clockService.now());
                         }
 
-                        return cursor;
-                    });
+                return cursor;
+            });
         } finally {
             busyLock.leaveBusy();
         }

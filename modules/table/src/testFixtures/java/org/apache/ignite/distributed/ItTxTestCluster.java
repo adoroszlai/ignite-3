@@ -776,7 +776,8 @@ public class ItTxTestCluster {
                         clientTransactionInflights,
                         500,
                         0,
-                        null
+                        null,
+                        catalogService
                 ),
                 new DummySchemaManagerImpl(schemaDescriptor),
                 clientTxManager.lockManager(),

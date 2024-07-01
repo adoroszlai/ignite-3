@@ -49,4 +49,12 @@ public interface SqlSchemaManager {
      * @param catalogVersion version of the catalog to wait.
      */
     CompletableFuture<Void> schemaReadyFuture(int catalogVersion);
+
+    /**
+     * Check if catalog version is an actual version at the given timestamp.
+     *
+     * @param catalogVersion Catalog version.
+     * @param timestamp Timestamp.
+     */
+    boolean isActualSchemaVersion(int catalogVersion, long timestamp);
 }

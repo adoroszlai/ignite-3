@@ -1302,7 +1302,8 @@ public class TableManager implements IgniteTablesInternal, IgniteComponent {
                 transactionInflights,
                 implicitTransactionTimeout,
                 attemptsObtainLock,
-                this::streamerFlushExecutor
+                this::streamerFlushExecutor,
+                catalogService
         );
 
         var table = new TableImpl(
